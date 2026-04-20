@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KONVERT — Unit Conversion API</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111;
+    --border: #222;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --muted: #555;
+    --success: #47ffa3;
+    --error: #ff4757;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid bg */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(232,255,71,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,71,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative; z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* Header */
+  header { margin-bottom: 56px; }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(64px, 12vw, 120px);
+    letter-spacing: 0.06em;
+    line-height: 0.85;
+    color: var(--accent);
+    text-shadow: 4px 4px 0 rgba(232,255,71,0.15);
+  }
+
+  .tagline {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    margin-top: 12px;
+  }
+
+  .api-badge {
+    display: inline-block;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    padding: 3px 10px;
+    margin-left: 16px;
+    vertical-align: middle;
+    position: relative;
+    top: -6px;
+  }
+
+  /* Category tabs */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 12px 20px;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+  }
+
+  .tab::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transition: transform 0.2s;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); }
+  .tab.active::after { transform: scaleX(1); }
+
+  /* Converter card */
+  .converter {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 32px;
+  }
+
+  .converter-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: end;
+    margin-bottom: 24px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .field input, .field select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 16px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  .field input:focus, .field select:focus {
+    border-color: var(--accent);
+  }
+
+  .field select option {
+    background: var(--bg);
+  }
+
+  .swap-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 18px;
+    width: 44px; height: 44px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1px;
+  }
+  .swap-btn:hover { border-color: var(--accent); color: var(--accent); transform: rotate(180deg); }
+
+  .convert-btn {
+    background: var(--accent);
+    border: none;
+    color: #0a0a0a;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 0.1em;
+    padding: 14px 40px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.15s;
+  }
+  .convert-btn:hover { background: #f5ff7a; transform: translateY(-1px); }
+  .convert-btn:active { transform: translateY(0); }
+
+  /* Result */
+  .result {
+    margin-top: 24px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    display: none;
+    animation: slideIn 0.25s ease;
+  }
+  .result.visible { display: block; }
+  .result.error { border-color: var(--error); }
+  .result.success { border-color: var(--success); }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px;
+    color: var(--success);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .result.error .result-value { color: var(--error); font-size: 18px; font-family: 'DM Mono', monospace; }
+
+  .result-formula {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    letter-spacing: 0.05em;
+  }
+  .result-formula span { color: var(--accent2); }
+
+  /* API docs section */
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 0.08em;
+    color: var(--text);
+    margin: 56px 0 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .endpoint {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin-bottom: 2px;
+    overflow: hidden;
+  }
+
+  .endpoint-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .endpoint-header:hover { background: #161616; }
+
+  .method {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    background: var(--accent);
+    color: #0a0a0a;
+  }
+  .method.get { background: var(--success); }
+
+  .path {
+    font-size: 13px;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .endpoint-body {
+    padding: 0 20px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    display: none;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+  .endpoint.open .endpoint-body { display: block; }
+
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 12px;
+    font-size: 12px;
+    color: var(--accent);
+    overflow-x: auto;
+    margin-top: 10px;
+    white-space: pre;
+  }
+
+  @media (max-width: 600px) {
+    .converter-row { grid-template-columns: 1fr; }
+    .swap-btn { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">KONVERT<span class="api-badge">REST API</span></div>
+    <p class="tagline">Unit Conversion Engine — Length · Weight · Temperature</p>
+  </header>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-cat="length">Length</button>
+    <button class="tab" data-cat="weight">Weight</button>
+    <button class="tab" data-cat="temperature">Temperature</button>
+  </div>
+
+  <!-- Converter -->
+  <div class="converter">
+    <div class="converter-row">
+      <div class="field">
+        <label>Value</label>
+        <input type="number" id="inputValue" placeholder="0.00" value="1">
+      </div>
+      <button class="swap-btn" id="swapBtn" title="Swap units">⇄</button>
+      <div class="field">
+        <label>From</label>
+        <select id="fromUnit"></select>
+      </div>
+    </div>
+    <div class="converter-row" style="grid-template-columns: 1fr 44px 1fr">
+      <div class="field">
+        <label>To</label>
+        <select id="toUnit"></select>
+      </div>
+      <div></div>
+    </div>
+
+    <button class="convert-btn" id="convertBtn">CONVERT</button>
+
+    <div class="result" id="result">
+      <div class="result-value" id="resultValue"></div>
+      <div class="result-formula" id="resultFormula"></div>
+    </div>
+  </div>
+
+  <!-- API Docs -->
+  <div class="section-title">API Reference</div>
+
+  <div class="endpoint" id="ep1">
+    <div class="endpoint-header" onclick="toggleEp('ep1')">
+      <span class="method">POST</span>
+      <span class="path">/convert/length</span>
+    </div>
+    <div class="endpoint-body">
+      Convert between mm, cm, m, km, in, ft, yd, mi.
+      <pre>{
+  "value": 100,
+  "from_unit": "cm",
+  "to_unit": "in"
+}</pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="ep2">
+    <div class="endpoint-header" onclick="toggleEp('ep2')">
+      <span class="method">POST</span>
+      <span class="path">/convert/weight</span>
+    </div>
+    <div class="endpoint-body">
+      Convert between mg, g, kg, t, oz, lb, st.
+      <pre>{
+  "value": 70,
+  "from_unit": "kg",
+  "to_unit": "lb"
+}</pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="ep3">
+    <div class="endpoint-header" onclick="toggleEp('ep3')">
+      <span class="method">POST</span>
+      <span class="path">/convert/temperature</span>
+    </div>
+    <div class="endpoint-body">
+      Convert between C, F, K.
+      <pre>{
+  "value": 100,
+  "from_unit": "C",
+  "to_unit": "F"
+}</pre>
+    </div>
+  </div>
+
+  <div class="endpoint" id="ep4">
+    <div class="endpoint-header" onclick="toggleEp('ep4')">
+      <span class="method get">GET</span>
+      <span class="path">/units</span>
+    </div>
+    <div class="endpoint-body">
+      Returns all supported units per category.
+    </div>
+  </div>
+
+  <div class="endpoint" id="ep5">
+    <div class="endpoint-header" onclick="toggleEp('ep5')">
+      <span class="method get">GET</span>
+      <span class="path">/health</span>
+    </div>
+    <div class="endpoint-body">
+      Health check endpoint. Returns <code style="color:var(--accent)">{"status":"ok"}</code>.
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const UNITS = {
+    length: ["mm","cm","m","km","in","ft","yd","mi"],
+    weight: ["mg","g","kg","t","oz","lb","st"],
+    temperature: ["C","F","K"],
+  };
+
+  const ENDPOINTS = {
+    length: "/convert/length",
+    weight: "/convert/weight",
+    temperature: "/convert/temperature",
+  };
+
+  let currentCat = "length";
+
+  function populateSelects(cat) {
+    const units = UNITS[cat];
+    ["fromUnit","toUnit"].forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.innerHTML = units.map((u, idx) =>
+        `<option value="${u}" ${idx === i ? "selected" : ""}>${u}</option>`
+      ).join("");
+    });
+    if (units.length > 1) document.getElementById("toUnit").selectedIndex = 1;
+  }
+
+  // Tabs
+  document.querySelectorAll(".tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      btn.classList.add("active");
+      currentCat = btn.dataset.cat;
+      populateSelects(currentCat);
+      hideResult();
+    });
+  });
+
+  // Swap
+  document.getElementById("swapBtn").addEventListener("click", () => {
+    const a = document.getElementById("fromUnit");
+    const b = document.getElementById("toUnit");
+    [a.value, b.value] = [b.value, a.value];
+  });
+
+  // Convert
+  document.getElementById("convertBtn").addEventListener("click", async () => {
+    const value = parseFloat(document.getElementById("inputValue").value);
+    const from_unit = document.getElementById("fromUnit").value;
+    const to_unit = document.getElementById("toUnit").value;
+
+    if (isNaN(value)) { showError("Enter a valid number"); return; }
+
+    const btn = document.getElementById("convertBtn");
+    btn.textContent = "CONVERTING...";
+
+    try {
+      const res = await fetch(ENDPOINTS[currentCat], {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value, from_unit, to_unit }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Conversion failed");
+      showResult(data);
+    } catch (e) {
+      showError(e.message);
+    } finally {
+      btn.textContent = "CONVERT";
+    }
+  });
+
+  function showResult(data) {
+    const el = document.getElementById("result");
+    el.className = "result visible success";
+    document.getElementById("resultValue").textContent =
+      `${data.output_value} ${data.output_unit}`;
+    document.getElementById("resultFormula").innerHTML =
+      `<span>Formula:</span> ${data.formula}`;
+  }
+
+  function showError(msg) {
+    const el = document.getElementById("result");
+    el.className = "result visible error";
+    document.getElementById("resultValue").textContent = `Error: ${msg}`;
+    document.getElementById("resultFormula").textContent = "";
+  }
+
+  function hideResult() {
+    document.getElementById("result").className = "result";
+  }
+
+  function toggleEp(id) {
+    document.getElementById(id).classList.toggle("open");
+  }
+
+  // Init
+  populateSelects(currentCat);
+
+  // Enter key
+  document.getElementById("inputValue").addEventListener("keydown", e => {
+    if (e.key === "Enter") document.getElementById("convertBtn").click();
+  });
+</script>
+</body>
+</html>
